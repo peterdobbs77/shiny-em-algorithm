@@ -20,31 +20,35 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
-  output$contents <- renderTable({
-    # input$file1 will be NULL initially. After the user selects
-    # and uploads a file, it will be a data frame with 'name',
-    # 'size', 'type', and 'datapath' columns. The 'datapath'
-    # column will contain the local filenames where the data can
-    # be found.
-    inFile <- input$file1
-    
-    if (is.null(inFile))
-      return(NULL)
-    
-    read.csv(inFile$datapath, header = input$header)
-  })
+  # input$file1 will be NULL initially. After the user selects
+  # and uploads a file, it will be a data frame with 'name',
+  # 'size', 'type', and 'datapath' columns. The 'datapath'
+  # column will contain the local filenames where the data can
+  # be found.
+  
   output$distPlot <- renderPlot({
     inFile <- input$file1
     
     if (is.null(inFile))
       return(NULL)
     
+    data <- read.csv(inFile$datapath, header=input$header)
+    
     # generate bins based on input$bins from ui.R
-    x    <- faithful[, 2]
+    x    <- data[, 5]
     bins <- seq(min(x), max(x), length.out = 10)
     
     # draw the histogram with the specified number of bins
-    hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    hist(x, xlab="X")
+  })
+  
+  output$contents <- renderTable({
+    inFile <- input$file1
+    if (is.null(inFile))
+      return(NULL)
+    
+    data <- read.csv(inFile$datapath, header=input$header)
+    head(data)
   })
 }
 

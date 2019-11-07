@@ -5,8 +5,8 @@ account: peterdobbs
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1439845
-bundleId: 2572287
+bundleId: 2572347
 url: https://peterdobbs.shinyapps.io/em-algorithm/
-when: 1573156369.42375
+when: 1573157562.13765
 asMultiple: FALSE
 asStatic: FALSE
