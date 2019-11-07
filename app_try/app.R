@@ -26,6 +26,15 @@ server <- function(input, output) {
   # column will contain the local filenames where the data can
   # be found.
   
+  output$contents <- renderTable({
+    inFile <- input$file1
+    if (is.null(inFile))
+      return(NULL)
+    
+    data <- read.csv(inFile$datapath, header=input$header)
+    head(data)
+  })
+  
   output$distPlot <- renderPlot({
     inFile <- input$file1
     
@@ -42,14 +51,6 @@ server <- function(input, output) {
     hist(x, xlab="X")
   })
   
-  output$contents <- renderTable({
-    inFile <- input$file1
-    if (is.null(inFile))
-      return(NULL)
-    
-    data <- read.csv(inFile$datapath, header=input$header)
-    head(data)
-  })
 }
 
 shinyApp(ui, server)
