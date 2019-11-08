@@ -1,35 +1,37 @@
-library("shiny")
+library(shiny)
+library(ggplot2)
 
 ui <- fluidPage(
+  titlePanel("Shiny-EM-Algorithm",windowTitle = "Shiny-EM-Algorithm"),
   sidebarLayout(
     sidebarPanel(
       fileInput("file1", "Choose CSV File",
-                accept = c(
-                  "text/csv",
-                  "text/comma-separated-values",
-                  ".csv")
-      ),
-      tags$hr(),
-      checkboxInput("header", "Header", TRUE)
+                accept = c("text/csv",
+                           "text/comma-separated-values",
+                           ".csv")),
+      checkboxInput("header", "Header", TRUE),
+      numericInput("numModes", "How many modes are in mixture model?",2)
     ),
     mainPanel(
+      textOutput("description"),
       tableOutput("contents"),
-      plotOutput("distPlot")
+      plotOutput("distPlot"),
+      
     )
   )
 )
 
 server <- function(input, output) {
-  # input$file1 will be NULL initially. After the user selects
-  # and uploads a file, it will be a data frame with 'name',
-  # 'size', 'type', and 'datapath' columns. The 'datapath'
-  # column will contain the local filenames where the data can
-  # be found.
+  output$description <- renderText({
+    inFile <- input$file1
+    if(is.null(inFile))
+      return("EXAMPLE")
+  })
   
   output$contents <- renderTable({
     inFile <- input$file1
     if (is.null(inFile))
-      return(NULL)
+      return(head(faithful[1]))
     
     data <- read.csv(inFile$datapath, header=input$header)
     head(data)
@@ -37,18 +39,27 @@ server <- function(input, output) {
   
   output$distPlot <- renderPlot({
     inFile <- input$file1
-    
     if (is.null(inFile))
-      return(NULL)
+      return(ggplot(faithful) + 
+               geom_histogram(aes(x=eruptions,y=..density..),
+                              binwidth=0.20, fill="cyan", color="black")+
+               geom_density(aes(x=eruptions), color="red"))
     
+    # read the selected data file 
     data <- read.csv(inFile$datapath, header=input$header)
     
     # generate bins based on input$bins from ui.R
-    x    <- data[, 5]
+    x    <- data[, 1]
     bins <- seq(min(x), max(x), length.out = 10)
     
     # draw the histogram with the specified number of bins
     hist(x, xlab="X")
+    
+    #
+    # TODO: apply EM-Algorithm here
+    #
+    #
+    
   })
   
 }
