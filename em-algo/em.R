@@ -10,6 +10,11 @@ p + geom_density(data=faithful,aes(x=eruptions), color="red")
 
 df <- data.frame(x=faithful$eruptions)
 
+theta <- list(
+  pi=0.5,
+  mu=c(2,5),
+  sig=c(1,1)
+)
 
 #logL<-NULL; mus<-seq(min(df$x),max(df$x),length=100); mu<- 1
 
