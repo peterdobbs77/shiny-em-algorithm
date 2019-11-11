@@ -13,7 +13,9 @@ ui <- fluidPage(
       # radioButtons("separator","Separator",
       #              choices=c("Comma","Semicolon","Tab"),
       #              selected="Comma"),
-      numericInput("numModes", "How many modes are in mixture model?",2)
+      numericInput("dataColumn", "Column #:",1),
+      numericInput("numModes", "How many modes are in mixture model?",2),
+      sliderInput("bins","Number of bins:",min=1,max=50,value=30)
     ),
     mainPanel(
       textOutput("description"),
@@ -45,21 +47,22 @@ server <- function(input, output) {
     if (is.null(inFile))
       return(ggplot(faithful) + 
                geom_histogram(aes(x=eruptions,y=..density..),
-                              binwidth=0.20, fill="cyan", color="black")+
+                              bins=input$bins, fill="cyan", color="black")+
                geom_density(aes(x=eruptions), color="red"))
     
     # read the selected data file 
     data <- read.csv(inFile$datapath, header=input$header)
     
     # generate bins based on input$bins from ui.R
-    x    <- data[, 1]
-    bins <- seq(min(x), max(x), length.out = 10)
+    x <- data.frame(x=data[, input$dataColumn])
     
-    # draw the histogram with the specified number of bins
-    hist(x, xlab="X")
+    ggplot(x) + 
+      geom_histogram(aes(x=x,y=..density..),
+                     bins=input$bins, fill="cyan", color="black")+
+      geom_density(aes(x=x), color="red")
     
     #
-    # TODO: apply EM-Algorithm here
+    # TODO: apply EM-Algorithm here to create pdf
     #
     #
     
