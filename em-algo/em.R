@@ -1,24 +1,31 @@
 library(ggplot2)
 
-df <- data.frame(x=faithful$waiting,y=faithful$eruptions)
-ggplot(df, aes(x=x, y=y)) + geom_point()
+ggplot(faithful, aes(x=waiting, y=eruptions)) + geom_point()
 
-p <- ggplot(df) + 
-  geom_histogram(aes(x=y, y=..density..),
-                 binwidth=0.25, fill="cyan", color="black")
+p <- ggplot(faithful) + 
+  geom_histogram(aes(x=eruptions, y=..density..),
+                 bins=30, fill="cyan", color="black")
 p + geom_density(data=faithful,aes(x=eruptions), color="red")
 
-df <- data.frame(x=faithful$eruptions)
+x <- faithful$eruptions
 
-theta <- list(
-  pi=0.5,
-  mu=c(2,5),
-  sig=c(1,1)
-)
+# number of modes
+nModes <- 5
+# TODO: use AIC to compute optimal number of modes
 
-#logL<-NULL; mus<-seq(min(df$x),max(df$x),length=100); mu<- 1
 
-#logLike <- function(mu,data=df$x){sum(dnorm(df$x,mu))}
-#max.logL <- optim(1,logLike,df$x,control=list(fnscale=-1))
+# initialize model parameters
+div <- split(sort(x), ceiling(seq_along(x)/(length(x)/nModes)))
 
-#for(i in 1:length(mus)){logL[i]<-logLike(mus[i],df$x)}
+pi <- rep(1/nModes,times=nModes)
+mu <- unlist(lapply(div,mean))
+s2 <- unlist(lapply(div,var))
+
+logLike.mu <- function(mu,data){
+  sum(dnorm(data$x,mu))
+}
+#max.logL <- optim(1,logLike,x,control=list(fnscale=-1))
+
+#for(i in 1:70){logL[i]<-logLike(mus[i],df$x)}
+
+# f(x; pi, mu, s2) = sum(pi * fi(x; mu_i, sqrt(s2_i))

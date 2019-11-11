@@ -20,8 +20,7 @@ ui <- fluidPage(
     mainPanel(
       textOutput("description"),
       tableOutput("contents"),
-      plotOutput("distPlot"),
-      
+      plotOutput("distPlot")
     )
   )
 )
@@ -53,7 +52,6 @@ server <- function(input, output) {
     # read the selected data file 
     data <- read.csv(inFile$datapath, header=input$header)
     
-    # generate bins based on input$bins from ui.R
     x <- data.frame(x=data[, input$dataColumn])
     
     ggplot(x) + 
