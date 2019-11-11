@@ -10,6 +10,9 @@ ui <- fluidPage(
                            "text/comma-separated-values",
                            ".csv")),
       checkboxInput("header", "Header", TRUE),
+      # radioButtons("separator","Separator",
+      #              choices=c("Comma","Semicolon","Tab"),
+      #              selected="Comma"),
       numericInput("numModes", "How many modes are in mixture model?",2)
     ),
     mainPanel(
