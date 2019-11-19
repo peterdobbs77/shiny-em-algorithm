@@ -30,6 +30,7 @@ server <- function(input, output) {
     inFile <- input$file1
     if(is.null(inFile))
       return("EXAMPLE")
+    return(NULL)
   })
   
   output$contents <- renderTable({

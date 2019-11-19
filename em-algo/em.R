@@ -15,11 +15,19 @@ nModes <- 5
 
 
 # initialize model parameters
-div <- split(sort(x), ceiling(seq_along(x)/(length(x)/nModes)))
-
 pi <- rep(1/nModes,times=nModes)
-mu <- unlist(lapply(div,mean))
-s2 <- unlist(lapply(div,var))
+mu <- seq(from=min(x),to=max(x),by=(max(x)-min(x))/(nModes-1))
+s2 <- rep(1,times=nModes)
+
+x.j <- matrix(NA,nrow=nModes,ncol=3)
+x.j[,1] <- pi
+x.j[,2] <- mu
+x.j[,3] <- s2
+
+theta <- list("pi" = x.j[,1],
+              "mu" = x.j[,2],
+              "s2" = x.j[,3])
+
 
 logLike.mu <- function(mu,data){
   sum(dnorm(data$x,mu))
