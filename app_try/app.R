@@ -65,6 +65,9 @@ iterate <- function(x,nModes,times){
   
   # initialize locals
   iter <- 0
+  e.step <- 0
+  m.step <- 0
+  summary <- matrix(NA,nrow=times,ncol=nModes*3)
   cur.logLike <- 0
   vec.logLike <- 0
   
@@ -123,9 +126,12 @@ ui <- fluidPage(
       sliderInput("bins","Number of bins:",min=1,max=50,value=30)
     ),
     mainPanel(
-      tableOutput("contents"),
-      plotOutput("fitCriteriaPlot"),
-      plotOutput("distPlot")
+      tabsetPanel(type="tabs",
+                  tabPanel("Data", tableOutput("contents")),
+                  tabPanel("Model Selection", plotOutput("fitCriteriaPlot")),
+                  tabPanel("Plot", plotOutput("distPlot")),
+                  tabPanel("Summary",tableOutput("theta"))
+      )
     )
   )
 )
@@ -142,12 +148,44 @@ server <- function(input, output) {
              header=input$header)
   })
   
+  optimalNumModes <- reactive({
+    if (is.null(data()))
+      return(3)
+    
+    x <- data()[,input$dataColumn]
+    
+    m <- 2000
+    nummode <- 1:6
+    cur.logL <- iterate(x,1,m)
+    vec.logL <- cur.logL$logLike[length(cur.logL)]
+    cat("nModes:",1L,"\n")
+    cat("iterations:",cur.logL$iterations,"\n\n")
+    for (i in 2:max(nummode)){
+      cur.logL <- iterate(x,i,m)
+      vec.logL <- c(vec.logL, cur.logL$logLike[length(cur.logL)])
+      cat("nModes:",i,"\n")
+      cat("iterations:",cur.logL$iterations,"\n\n")
+    }
+    
+    k <- 3*nummode-1
+    n <- length(x)
+    
+    aic <- -2*vec.logL + 2*k + 2*k*(k+1)/(n-k-1)
+    bic <- -2*vec.logL + k*log(n)
+    y <- data.frame(modes=nummode,
+                    values=c(aic, bic),
+                    criteria=c(rep("AIC",max(nummode)),
+                               rep("BIC",max(nummode))))
+    
+    y[which.min(y$values),]$modes
+  })
   
   output$contents <- renderTable({
     if (is.null(data()))
-      return(summary(faithful[input$dataColumn]))
-    x <- data.frame(x=data()[, input$dataColumn])
-    summary(x)
+      return(faithful)
+    data()
+    # x <- data.frame(x=data()[, input$dataColumn])
+    # summary(x)
   })
   
   output$fitCriteriaPlot <- renderPlot({
@@ -195,8 +233,6 @@ server <- function(input, output) {
       geom_point(aes(x=minBIC,min(bic)),size=2,color="cyan") +
       ggtitle("Information Criterion") + xlab("# of Modes") + ylab("AIC/BIC") +
       theme(plot.title = element_text(size=20,face="bold",hjust=0.5))
-    
-    
   })
   
   output$distPlot <- renderPlot({
@@ -212,6 +248,19 @@ server <- function(input, output) {
       geom_histogram(aes(x=x,y=..density..),
                      bins=input$bins, fill="cyan", color="black")+
       geom_density(aes(x=x), color="red")
+  })
+  
+  output$theta <- renderDataTable({
+    x<-0
+    if(is.null(data()))
+      x <- faithful$eruptions
+    else
+      x <- data()[,input$dataColumn]
+    
+    nModes <- optimalNumModes()
+    
+    res <- iterate(x,nModes,5000)
+    
   })
   
 }
