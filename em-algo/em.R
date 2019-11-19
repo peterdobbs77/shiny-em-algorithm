@@ -19,8 +19,8 @@ init <- function(x, nModes){
 }
 
 e_step <- function(x,nModes,theta){
-  post.proc <- matrix(0,nrow=length(data),ncol=nModes)
-  post.proc.j <- matrix(0,nrow=length(data),ncol=nModes)
+  post.proc <- matrix(0,nrow=length(x),ncol=nModes)
+  post.proc.j <- matrix(0,nrow=length(x),ncol=nModes)
   sum.probs <- 0
   for (i in 1:nModes){
     post.proc[,i] <- theta$pi[i] * dnorm(x,theta$mu[i],theta$sigma[i])
@@ -40,7 +40,6 @@ e_step <- function(x,nModes,theta){
 
 m_step <- function(x,nModes,post){
   theta <- matrix(0, nrow = nModes, ncol = 3)
-  colnames(theta) <- paste(c('pi','mu','sigma'))
   pi <- mu <- sigma <- temp <- rep(0,nModes)
   
   for (i in 1:nModes){
@@ -49,9 +48,11 @@ m_step <- function(x,nModes,post){
     mu[i] <- (1/temp[i])*sum(post[,i] * x)
     sigma[i] <- sqrt(sum(post[,i]*(x-mu[i])^2) / temp[i])
     
-    theta[i] <- c(pi[i],mu[i],sigma[i])
+    theta[i,] <- c(pi[i],mu[i],sigma[i])
   }
-  theta
+  list("pi"=theta[,1],
+       "mu"=theta[,2],
+       "sigma"=theta[,3])
 }
 
 iterate <- function(x,nModes,times){
@@ -101,14 +102,17 @@ x <- faithful$eruptions
 nModes <- 5
 # TODO: use AIC to compute optimal number of modes
 
+theta <- init(x,nModes)
+print(theta)
 
+m <- 2000
 
+k <- iterate(x,nModes,m)
 
+print(k$result)
+print(k$logLike)
 
-
-logLike.mu <- function(mu,data){
-  sum(dnorm(data$x,mu))
-}
+logLike.mu <- sum(dnorm(x,theta$mu))
 #max.logL <- optim(1,logLike,x,control=list(fnscale=-1))
 
 #for(i in 1:70){logL[i]<-logLike(mus[i],df$x)}
