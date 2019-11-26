@@ -5,21 +5,21 @@ init <- function(data, nModes){
   # initialize model parameters
   pi <- 1
   mu <- mean(data)
-  sigma <- 1
+  sd <- 1
   if(nModes>1){
     pi <- rep(1/nModes,nModes)
     mu <- seq(from=min(data),to=max(data),by=(max(data)-min(data))/(nModes-1))
-    sigma <- rep(1,nModes)
+    sd <- rep(1,nModes)
   }
   
   data.j <- matrix(NA,nrow=nModes,ncol=3)
   data.j[,1] <- pi
   data.j[,2] <- mu
-  data.j[,3] <- sigma
+  data.j[,3] <- sd
   
   list("pi" = data.j[,1],
        "mu" = data.j[,2],
-       "sigma" = data.j[,3])
+       "sd" = data.j[,3])
 }
 
 e_step <- function(x,nModes,theta){
@@ -27,7 +27,7 @@ e_step <- function(x,nModes,theta){
   post.proc.j <- matrix(0,nrow=length(x),ncol=nModes)
   sum.probs <- 0
   for (i in 1:nModes){
-    post.proc[,i] <- theta$pi[i] * dnorm(x,theta$mu[i],theta$sigma[i])
+    post.proc[,i] <- theta$pi[i] * dnorm(x,theta$mu[i],theta$sd[i])
     sum.probs <- sum.probs + post.proc[,i]
   }
   
@@ -44,30 +44,32 @@ e_step <- function(x,nModes,theta){
 
 m_step <- function(x,nModes,post){
   theta <- matrix(0, nrow = nModes, ncol = 3)
-  pi <- mu <- sigma <- temp <- rep(0,nModes)
+  pi <- mu <- sd <- temp <- rep(0,nModes)
   
   for (i in 1:nModes){
     temp[i] <- sum(post[,i])
     pi[i] <- temp[i]/length(x)
     mu[i] <- (1/temp[i])*sum(post[,i] * x)
-    sigma[i] <- sqrt(sum(post[,i]*(x-mu[i])^2) / temp[i])
+    sd[i] <- sqrt(sum(post[,i]*(x-mu[i])^2) / temp[i])
     
-    theta[i,] <- c(pi[i],mu[i],sigma[i])
+    theta[i,] <- c(pi[i],mu[i],sd[i])
   }
   list("pi"=theta[,1],
        "mu"=theta[,2],
-       "sigma"=theta[,3])
+       "sd"=theta[,3])
 }
 
 iterate <- function(x,nModes,times){
   #browser()
   theta <- init(x,nModes)
   
+  df.pi <- data.frame(pi=t(theta$pi))
+  df.mu <- data.frame(mu=t(theta$mu))
+  df.sd <- data.frame(sd=t(theta$sd))
+  
   # initialize locals
-  iter <- 0
   e.step <- 0
   m.step <- 0
-  summary <- matrix(NA,nrow=times,ncol=nModes*3)
   cur.logLike <- 0
   vec.logLike <- 0
   
@@ -81,27 +83,31 @@ iterate <- function(x,nModes,times){
     } else {
       theta$pi <- m.step$pi
       theta$mu <- m.step$mu
-      theta$sigma <- m.step$sigma
+      theta$sd <- m.step$sd
       e.step <- e_step(x,nModes,theta)
       m.step <- m_step(x,nModes,e.step$post)
       
-      #
+      # add results to running lists
+      df.pi <- rbind(df.pi,theta$pi)
+      df.mu <- rbind(df.mu,theta$mu)
+      df.sd <- rbind(df.sd,theta$sd)
       vec.logLike <- c(vec.logLike, e.step$logLike)
       
       # check convergence
       err.logLike <- abs((cur.logLike - e.step$logLike))
-      if(err.logLike < 1e-7){
+      if(err.logLike < 1e-3){
         break
       } else {
         cur.logLike <- e.step$logLike
       }
     }
-    iter <- iter+1
   }
+  
+  df.theta <- cbind(df.pi,df.mu,df.sd)
   
   list("result"=m.step,
        "logLike"=vec.logLike,
-       "iterations"=iter)
+       "theta"=df.theta)
 }
 
 ui <- fluidPage(
@@ -142,15 +148,15 @@ server <- function(input, output) {
     # try to read the selected data file 
     inFile <- input$file1
     if(is.null(inFile))
-      return()
+      return(faithful)
     read.csv(file=inFile$datapath,
              sep=",",
              header=input$header)
   })
   
+  output$contents <- renderTable({ data() })
+  
   optimalNumModes <- reactive({
-    if (is.null(data()))
-      return(3)
     
     x <- data()[,input$dataColumn]
     
@@ -158,19 +164,15 @@ server <- function(input, output) {
     nummode <- 1:6
     cur.logL <- iterate(x,1,m)
     vec.logL <- cur.logL$logLike[length(cur.logL)]
-    cat("nModes:",1L,"\n")
-    cat("iterations:",cur.logL$iterations,"\n\n")
     for (i in 2:max(nummode)){
       cur.logL <- iterate(x,i,m)
       vec.logL <- c(vec.logL, cur.logL$logLike[length(cur.logL)])
-      cat("nModes:",i,"\n")
-      cat("iterations:",cur.logL$iterations,"\n\n")
     }
     
     k <- 3*nummode-1
     n <- length(x)
     
-    aic <- -2*vec.logL + 2*k + 2*k*(k+1)/(n-k-1)
+    aic <- -2*vec.logL + 2*k
     bic <- -2*vec.logL + k*log(n)
     y <- data.frame(modes=nummode,
                     values=c(aic, bic),
@@ -180,42 +182,27 @@ server <- function(input, output) {
     y[which.min(y$values),]$modes
   })
   
-  output$contents <- renderTable({
-    if (is.null(data()))
-      return(faithful)
-    data()
-    # x <- data.frame(x=data()[, input$dataColumn])
-    # summary(x)
-  })
-  
   output$fitCriteriaPlot <- renderPlot({
-    x<-0
-    if(is.null(data()))
-      x <- faithful$eruptions
-    else
-      x <- data()[,input$dataColumn]
+    
+    x <- data()[,input$dataColumn]
     
     m <- 2000
     nummode <- 1:6
     cur.logL <- iterate(x,1,m)
     vec.logL <- cur.logL$logLike[length(cur.logL)]
-    cat("nModes:",1L,"\n")
-    cat("iterations:",cur.logL$iterations,"\n\n")
     for (i in 2:max(nummode)){
       cur.logL <- iterate(x,i,m)
       vec.logL <- c(vec.logL, cur.logL$logLike[length(cur.logL)])
-      cat("nModes:",i,"\n")
-      cat("iterations:",cur.logL$iterations,"\n\n")
     }
     
     k <- 3*nummode-1
     n <- length(x)
     
-    aic <- -2*vec.logL + 2*k + 2*k*(k+1)/(n-k-1)
+    aic <- 2*k - 2*vec.logL
     AIC.df <- data.frame(modes=nummode,
                          values=aic)
     
-    bic <- -2*vec.logL + k*log(n)
+    bic <- log(n)*k - 2*vec.logL
     BIC.df <- data.frame(modes=nummode,
                          values=bic)
     
@@ -232,35 +219,32 @@ server <- function(input, output) {
       geom_point(aes(x=minAIC,min(aic)),size=2,color="red") +
       geom_point(aes(x=minBIC,min(bic)),size=2,color="cyan") +
       ggtitle("Information Criterion") + xlab("# of Modes") + ylab("AIC/BIC") +
-      theme(plot.title = element_text(size=20,face="bold",hjust=0.5))
+      theme(plot.title = element_text(size=16,face="bold",hjust=0.5))
   })
   
   output$distPlot <- renderPlot({
-    if (is.null(data()))
-      return(ggplot(faithful) + 
-               geom_histogram(aes(x=eruptions,y=..density..),
-                              bins=input$bins, fill="cyan", color="black") +
-               geom_density(aes(x=eruptions), color="red"))
+    x <- data()[, input$dataColumn]
+    nModes <- optimalNumModes()
+    res <- iterate(x,nModes,5000)
     
-    x <- data.frame(x=data()[, input$dataColumn])
+    comp <- sample(1:3,prob=res$result$pi,size=length(x),replace=TRUE)
+    samples <- rnorm(n=length(x),mean=res$result$mu[comp],sd=res$result$sd[comp])
     
-    ggplot(x) + 
+    d <- data.frame(x=x,samples=samples)
+    
+    ggplot(d) + 
       geom_histogram(aes(x=x,y=..density..),
                      bins=input$bins, fill="cyan", color="black")+
       geom_density(aes(x=x), color="red")
   })
   
-  output$theta <- renderDataTable({
-    x<-0
-    if(is.null(data()))
-      x <- faithful$eruptions
-    else
-      x <- data()[,input$dataColumn]
+  output$theta <- renderTable({
+    x <- data()[,input$dataColumn]
     
     nModes <- optimalNumModes()
     
     res <- iterate(x,nModes,5000)
-    
+    res$theta
   })
   
 }
