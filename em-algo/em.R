@@ -96,6 +96,14 @@ iterate <- function(x,nModes,times){
        "theta"=df.theta)
 }
 
+estimate_pdf <- function(x, nModes){
+  m <- 2000
+  k <- iterate(x,nModes,m)
+  
+  comp <- sample(1:nModes,prob=k$result$pi,size=length(x),replace=TRUE)
+  samples <- rnorm(n=length(x),mean=k$result$mu[comp],sd=k$result$sd[comp])
+}
+
 
 ggplot(faithful, aes(x=waiting, y=eruptions)) + geom_point()
 
@@ -105,18 +113,9 @@ p <- ggplot(faithful) +
 p + geom_density(data=faithful,aes(x=eruptions), color="red")
 
 x <- faithful$eruptions
-
-# number of modes
 nModes <- 5
-# TODO: use AIC to compute optimal number of modes
 
-theta <- init(x,nModes)
-print(theta)
+res <- estimate_pdf(x,nModes)
 
-m <- 2000
-
-k <- iterate(x,nModes,m)
-
-comp <- sample(1:nModes,prob=k$result$pi,size=length(x),replace=TRUE)
-samples <- rnorm(n=length(x),mean=k$result$mu[comp],sd=res$result$sd[comp])
-
+d <- data.frame(x=samples)
+p + geom_density(data=d,aes(x=x),color="purple")
