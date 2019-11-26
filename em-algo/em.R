@@ -117,20 +117,6 @@ m <- 2000
 
 k <- iterate(x,nModes,m)
 
-print(k$result)
-print(k$logLike)
-print(k$theta)
-
-df <- k$theta
-
 comp <- sample(1:nModes,prob=k$result$pi,size=length(x),replace=TRUE)
 samples <- rnorm(n=length(x),mean=k$result$mu[comp],sd=res$result$sd[comp])
-
-#logLike.mu <- sum(dnorm(x,theta$mu))
-#max.logL <- optim(1,logLike,x,control=list(fnscale=-1))
-
-#for(i in 1:70){logL[i]<-logLike(mus[i],df$x)}
-
-# f(x; pi, mu, s2) = sum(pi * fi(x; mu_i, sqrt(s2_i))
-
 
