@@ -227,7 +227,7 @@ server <- function(input, output) {
     nModes <- optimalNumModes()
     res <- iterate(x,nModes,5000)
     
-    comp <- sample(1:3,prob=res$result$pi,size=length(x),replace=TRUE)
+    comp <- sample(1:nModes,prob=res$result$pi,size=length(x),replace=TRUE)
     samples <- rnorm(n=length(x),mean=res$result$mu[comp],sd=res$result$sd[comp])
     
     d <- data.frame(x=x,samples=samples)

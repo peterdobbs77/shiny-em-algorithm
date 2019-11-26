@@ -123,6 +123,9 @@ print(k$theta)
 
 df <- k$theta
 
+comp <- sample(1:nModes,prob=k$result$pi,size=length(x),replace=TRUE)
+samples <- rnorm(n=length(x),mean=k$result$mu[comp],sd=res$result$sd[comp])
+
 #logLike.mu <- sum(dnorm(x,theta$mu))
 #max.logL <- optim(1,logLike,x,control=list(fnscale=-1))
 
