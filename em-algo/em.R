@@ -105,15 +105,19 @@ iterate <- function(x,nModes,times){
 # p + geom_density(data=faithful,aes(x=eruptions), color="red")
 
 d <- faithful$eruptions
-nModes <- 3
+nModes <- 4
+bins <- 30
 
 res <- iterate(d,nModes,1000)
+print(res)
 
 comp <- sample(1:nModes,prob=res$result$pi,size=length(d),replace=TRUE)
-dist <- dnorm(d,mean=res$result$mu[comp],sd=res$result$sd[comp])
+dist <- rnorm(n=100000,mean=res$result$mu[comp],sd=res$result$sd[comp])
 
-x <- seq(from=min(d),
-         to=max(d),
-         length.out=m)
-hist(d,breaks=30,prob=T)
-lines(density(dist),col="red")
+bins <- seq(min(x),max(x),length.out=bins+1)
+
+dens <- density(dist)
+
+hist(d,breaks=bins,prob=T)
+lines(density(dist,bw=0.05),col="red")
+
