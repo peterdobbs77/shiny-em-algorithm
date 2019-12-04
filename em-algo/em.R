@@ -109,18 +109,23 @@ nModes <- 5
 
 res <- iterate(d,nModes,1000)
 
-m <- length(d)
-prod <- rep(1,m)
+m <- 1000
+prod <- rep(1.0,m)
 x <- seq(from=min(d),
          to=max(d),
-         length.out=m)
+         length.out=length(d))
 for(i in 1:m){
-  prod[i] <- 1
+  prod_k <- rep(1.0,m)
   for(k in 1:nModes){
-    I <- res$responsibility[k]
+    I <- res$responsibility[i,k]
     N <- dnorm(x,res$result$mu[k],res$result$sd[k])^(I)
     w <- res$result$pi[k]^(I)
-    prod[i] <- prod[i] * w * I
+    prod_k <- prod_k * w * N
   }
+  prod[i] <- prod(prod_k)
 }
 print(prod)
+
+
+hist(d,breaks=30,prob=TRUE,ylim=c(0,1.1))
+lines(x,prod,col="red")

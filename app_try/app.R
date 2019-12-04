@@ -250,10 +250,10 @@ server <- function(input, output, session) {
              length.out=m)
     for(i in 1:m){
       for(k in 1:nModes){
-        I <- res$responsibility[k]
+        I <- res$responsibility[i,k]
         N <- dnorm(x,res$result$mu[k],res$result$sd[k])^(I)
         w <- res$result$pi[k]^(I)
-        prod[i] <- prod[i] * w*I
+        prod[i] <- prod[i] * w*N
       }
     }
     print(prod)
