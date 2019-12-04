@@ -8,11 +8,6 @@ init <- function(data, nModes){
     sd <- 1
     if(nModes>1){
         pi <- rep(1/nModes,nModes)
-        # mu <- apply(split(data,cut(seq_along(data),labels=F)),1,mean)
-        # sections <- split(data,cut(seq_along(data),nModes,labels=F))
-        # print(sections)
-        # print(lapply(sections,mean))
-        # print(lapply(sections,sd))
         mu <- seq(from=min(data),
                   to=max(data),
                   by=(max(data)-min(data))/(nModes-1))
@@ -67,8 +62,6 @@ m_step <- function(x,nModes,post){
 }
 
 iterate <- function(x,nModes,times){
-
-    #browser()
     theta <- init(x,nModes)
     
     df.pi <- data.frame(pi=t(theta$pi))
@@ -132,7 +125,7 @@ ui <- fluidPage(
                          choices=c("Comma","Semicolon","Tab"),
                          selected="Comma"),
             numericInput("dataColumn", "Column #:",1,min=1),
-            numericInput("numModes", "How many modes are in mixture model?",1,min=1),
+            numericInput("numModes", "How many modes are in mixture model?",1,min=1,max=10),
             numericInput("numSteps", "EM-Step:",0,min=0),
             # checkboxInput("fixTheta","Fix mu"),
             # checkboxGroupInput("displayOptions","Display:",
@@ -197,7 +190,7 @@ server <- function(input, output, session) {
                         values=c(aic, bic),
                         criteria=c(rep("AIC",max(nummode)),
                                    rep("BIC",max(nummode))))
-        print(y)
+        # print(y)
         
         minAIC <- AIC.df[which.min(AIC.df$values),]$modes
         
@@ -223,24 +216,16 @@ server <- function(input, output, session) {
         nSteps <- input$numSteps
         res <- iterate(d,nModes,nSteps)
         
-        print(res$result)
-        
-        # d <- data.frame(x=x,samples=samples)
-        # ggplot(d) +
-        #   geom_histogram(aes(x=x,y=..density..),
-        #                  bins=input$bins, fill="cyan", color="black")+
-        #   geom_density(aes(x=samples), color="red")
-        
         m<-10000
         comp <- sample(1:nModes,prob=res$result$pi,size=m,replace=TRUE)
         dist <- rnorm(n=m,mean=res$result$mu[comp],sd=res$result$sd[comp])
         
-        bins <- seq(from = min(dist),
-                    to = max(dist),
+        bins <- seq(from = min(d),
+                    to = max(d),
                     length.out = input$bins+1)
         #browser()
         hist(d,breaks=bins,xlab="Data",prob=T)
-        lines(density(dist,na.rm=FALSE),lwd=2,col="red")
+        lines(density(dist,adjust=0.5),lwd=2,col="red")
     })
     
     output$theta <- renderTable({
