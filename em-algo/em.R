@@ -93,29 +93,34 @@ iterate <- function(x,nModes,times){
   
   list("result"=m.step,
        "logLike"=logLike.c,
-       "theta"=df.theta)
+       "theta"=df.theta,
+       "responsibility"=e.step$post)
 }
 
-estimate_pdf <- function(x, nModes){
-  m <- 2000
-  k <- iterate(x,nModes,m)
-  
-  comp <- sample(1:nModes,prob=k$result$pi,size=length(x),replace=TRUE)
-  samples <- rnorm(n=length(x),mean=k$result$mu[comp],sd=k$result$sd[comp])
-}
+# ggplot(faithful, aes(x=waiting, y=eruptions)) + geom_point()
 
+# p <- ggplot(faithful) + 
+#   geom_histogram(aes(x=eruptions, y=..density..),
+#                  bins=30, fill="cyan", color="black")
+# p + geom_density(data=faithful,aes(x=eruptions), color="red")
 
-ggplot(faithful, aes(x=waiting, y=eruptions)) + geom_point()
-
-p <- ggplot(faithful) + 
-  geom_histogram(aes(x=eruptions, y=..density..),
-                 bins=30, fill="cyan", color="black")
-p + geom_density(data=faithful,aes(x=eruptions), color="red")
-
-x <- faithful$eruptions
+d <- faithful$eruptions
 nModes <- 5
 
-res <- estimate_pdf(x,nModes)
+res <- iterate(d,nModes,1000)
 
-d <- data.frame(x=samples)
-p + geom_density(data=d,aes(x=x),color="purple")
+m <- length(d)
+prod <- rep(1,m)
+x <- seq(from=min(d),
+         to=max(d),
+         length.out=m)
+for(i in 1:m){
+  prod[i] <- 1
+  for(k in 1:nModes){
+    I <- res$responsibility[k]
+    N <- dnorm(x,res$result$mu[k],res$result$sd[k])^(I)
+    w <- res$result$pi[k]^(I)
+    prod[i] <- prod[i] * w * I
+  }
+}
+print(prod)

@@ -26,13 +26,13 @@ e_step <- function(x,nModes,theta){
   post.proc <- matrix(0,nrow=length(x),ncol=nModes)
   post.proc.j <- matrix(0,nrow=length(x),ncol=nModes)
   sum.probs <- 0
-  for (i in 1:nModes){
-    post.proc[,i] <- theta$pi[i] * dnorm(x,theta$mu[i],theta$sd[i])
-    sum.probs <- sum.probs + post.proc[,i]
+  for (k in 1:nModes){
+    post.proc[,k] <- theta$pi[k] * dnorm(x,theta$mu[k],theta$sd[k])
+    sum.probs <- sum.probs + post.proc[,k]
   }
   
-  for (i in 1:nModes){
-    post.proc.j[,i] <- post.proc[,i]/sum.probs
+  for (k in 1:nModes){
+    post.proc.j[,k] <- post.proc[,k]/sum.probs
   }
   
   comp.ln <- log(sum.probs)
@@ -107,11 +107,12 @@ iterate <- function(x,nModes,times){
   
   list("result"=m.step,
        "logLike"=vec.logLike,
-       "theta"=df.theta)
+       "theta"=df.theta,
+       "responsibility"=e.step$post)
 }
 
 ui <- fluidPage(
-  titlePanel("Shiny-EM-Algorithm",windowTitle = "Shiny-EM-Algorithm"),
+  titlePanel("Shiny-EM-Algorithm", windowTitle = "Shiny-EM-Algorithm"),
   sidebarLayout(
     sidebarPanel(
       fileInput("file1", "Choose CSV File",
@@ -123,13 +124,15 @@ ui <- fluidPage(
                    choices=c("Comma","Semicolon","Tab"),
                    selected="Comma"),
       numericInput("dataColumn", "Column #:",1,min=1),
-      numericInput("numModes", "How many modes are in mixture model?",2,min=1),
-      numericInput("times", "EM-Step:",0,min=0),
-      checkboxInput("fixTheta","Fix mu"),
+      numericInput("numModes", "How many modes are in mixture model?",1,min=1),
+      numericInput("numSteps", "EM-Step:",0,min=0),
+      # checkboxInput("fixTheta","Fix mu"),
       # checkboxGroupInput("displayOptions","Display:",
       #                    choiceNames = 
       #                      list("initial","final","legend")),
-      sliderInput("bins","Number of bins:",min=1,max=50,value=30)
+      sliderInput("bins","Number of bins:",min=1,max=50,value=30),
+      # hr(),
+      # tagList("Url link:",a("Github Page",href="https://github.com/peterdobbs77/shiny-em-algorithm"))
     ),
     mainPanel(
       tabsetPanel(type="tabs",
@@ -142,7 +145,7 @@ ui <- fluidPage(
   )
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   data <- reactive({
     # try to read the selected data file 
@@ -156,17 +159,18 @@ server <- function(input, output) {
   
   output$contents <- renderTable({ data() })
   
-  optimalNumModes <- reactive({
-    
+  optimalNumericInputs <- observe({
     x <- data()[,input$dataColumn]
     
     m <- 2000
-    nummode <- 1:6
+    nummode <- 1:8
     cur.logL <- iterate(x,1,m)
     vec.logL <- cur.logL$logLike[length(cur.logL)]
+    vec.iter <- nrow(cur.logL$theta)
     for (i in 2:max(nummode)){
       cur.logL <- iterate(x,i,m)
       vec.logL <- c(vec.logL, cur.logL$logLike[length(cur.logL)])
+      vec.iter <- c(vec.iter, nrow(cur.logL$theta))
     }
     
     k <- 3*nummode-1
@@ -174,12 +178,17 @@ server <- function(input, output) {
     
     aic <- -2*vec.logL + 2*k
     bic <- -2*vec.logL + k*log(n)
+    
     y <- data.frame(modes=nummode,
+                    iters=vec.iter,
                     values=c(aic, bic),
                     criteria=c(rep("AIC",max(nummode)),
                                rep("BIC",max(nummode))))
+    # print(y)
+    #browser()
     
-    y[which.min(y$values),]$modes
+    updateNumericInput(session, "numModes", value = y[which.min(y$values),]$modes)
+    updateNumericInput(session, "numSteps", value = y[which.min(y$values),]$iters)
   })
   
   output$fitCriteriaPlot <- renderPlot({
@@ -187,7 +196,7 @@ server <- function(input, output) {
     x <- data()[,input$dataColumn]
     
     m <- 2000
-    nummode <- 1:6
+    nummode <- 1:10
     cur.logL <- iterate(x,1,m)
     vec.logL <- cur.logL$logLike[length(cur.logL)]
     for (i in 2:max(nummode)){
@@ -222,28 +231,55 @@ server <- function(input, output) {
       theme(plot.title = element_text(size=16,face="bold",hjust=0.5))
   })
   
+  f <- function(res, nModes, x){
+    
+  }
+  
   output$distPlot <- renderPlot({
-    x <- data()[, input$dataColumn]
-    nModes <- optimalNumModes()
-    res <- iterate(x,nModes,5000)
+    d <- data()[, input$dataColumn]
+    nModes <- input$numModes
+    nSteps <- input$numSteps
+    res <- iterate(d,nModes,nSteps)
     
-    comp <- sample(1:nModes,prob=res$result$pi,size=length(x),replace=TRUE)
-    samples <- rnorm(n=length(x),mean=res$result$mu[comp],sd=res$result$sd[comp])
+    #print(res$responsibility)
     
-    d <- data.frame(x=x,samples=samples)
+    m <- length(d)
+    prod <- rep(1,m)
+    x <- seq(from=min(d),
+             to=max(d),
+             length.out=m)
+    for(i in 1:m){
+      for(k in 1:nModes){
+        I <- res$responsibility[k]
+        N <- dnorm(x,res$result$mu[k],res$result$sd[k])^(I)
+        w <- res$result$pi[k]^(I)
+        prod[i] <- prod[i] * w*I
+      }
+    }
+    print(prod)
     
-    ggplot(d) + 
-      geom_histogram(aes(x=x,y=..density..),
-                     bins=input$bins, fill="cyan", color="black")+
-      geom_density(aes(x=x), color="red")
+    #print(sum(comp*samples))
+    
+    # d <- data.frame(x=x,samples=samples)
+    # ggplot(d) +
+    #   geom_histogram(aes(x=x,y=..density..),
+    #                  bins=input$bins, fill="cyan", color="black")+
+    #   geom_density(aes(x=samples), color="red")
+    
+    #browser()
+    hist(d, breaks=input$bins-1
+         ,probability = TRUE
+         )
+    lines(x,prod, col="red")
   })
   
   output$theta <- renderTable({
     x <- data()[,input$dataColumn]
     
-    nModes <- optimalNumModes()
+    nModes <- input$numModes
+    nSteps <- input$numSteps
     
-    res <- iterate(x,nModes,5000)
+    res <- iterate(x,nModes,nSteps)
     res$theta
   })
   
