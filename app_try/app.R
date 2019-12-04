@@ -96,7 +96,13 @@ iterate <- function(x,nModes,times){
             df.sd <- rbind(df.sd,theta$sd)
             vec.logLike <- c(vec.logLike, e.step$logLike)
             
-            cur.logLike <- e.step$logLike
+            # check convergence
+            err.logLike <- as.double(abs((cur.logLike - e.step$logLike)))
+            if(err.logLike < 1e-4){
+                break
+            } else {
+                cur.logLike <- e.step$logLike
+            }
         }
     }
     
@@ -160,7 +166,7 @@ server <- function(input, output, session) {
         if(is.null(data())) return(NULL)
         x <- as.numeric(data()[,input$dataColumn])
         
-        m <- 500
+        m <- 2000
         nummode <- 1:8
         cur.logL <- iterate(x,1,m)
         vec.logL <- cur.logL$logLike[length(cur.logL$logLike)]
