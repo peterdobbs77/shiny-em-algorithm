@@ -11,7 +11,7 @@ init <- function(data, nModes){
         mu <- seq(from=min(data),
                   to=max(data),
                   by=(max(data)-min(data))/(nModes-1))
-        sd <- rep(1,nModes)
+        sd <- runif(nModes,0,1)
     }
     
     data.j <- matrix(NA,nrow=nModes,ncol=3)
@@ -62,6 +62,7 @@ m_step <- function(x,nModes,post){
 }
 
 iterate <- function(x,nModes,times){
+    x <- as.double(x)
     theta <- init(x,nModes)
     
     df.pi <- data.frame(pi=t(theta$pi))
@@ -74,6 +75,7 @@ iterate <- function(x,nModes,times){
     cur.logLike <- 0
     vec.logLike <- 0
     
+    # browser()
     # repeat E and M steps until convergence
     for(i in 1:times){
         if(i == 1){
@@ -94,13 +96,7 @@ iterate <- function(x,nModes,times){
             df.sd <- rbind(df.sd,theta$sd)
             vec.logLike <- c(vec.logLike, e.step$logLike)
             
-            # check convergence
-            err.logLike <- abs((cur.logLike - e.step$logLike))
-            if(err.logLike < 1e-4){
-                break
-            } else {
-                cur.logLike <- e.step$logLike
-            }
+            cur.logLike <- e.step$logLike
         }
     }
     
@@ -152,7 +148,7 @@ server <- function(input, output, session) {
         # try to read the selected data file 
         inFile <- input$file1
         if(is.null(inFile))
-            return(faithful)
+            return(NULL)
         read.csv(file=inFile$datapath,
                  sep=",",
                  header=input$header)
@@ -160,10 +156,11 @@ server <- function(input, output, session) {
     
     output$contents <- renderTable({ data() })
     
-    optimalNumericInputs <- observe({
-        x <- data()[,input$dataColumn]
+    output$fitCriteriaPlot <- renderPlot({
+        if(is.null(data())) return(NULL)
+        x <- as.numeric(data()[,input$dataColumn])
         
-        m <- 2000
+        m <- 500
         nummode <- 1:8
         cur.logL <- iterate(x,1,m)
         vec.logL <- cur.logL$logLike[length(cur.logL$logLike)]
@@ -196,21 +193,19 @@ server <- function(input, output, session) {
         
         minBIC <- BIC.df[which.min(BIC.df$values),]$modes
         
-        #browser()
         
-        # update UI
-        output$fitCriteriaPlot <- renderPlot({
-            ggplot(y, aes(x=modes,y=values,group=criteria,color=criteria)) + geom_line() +
-                geom_point(aes(x=minAIC,min(aic)),size=2,color="red") +
-                geom_point(aes(x=minBIC,min(bic)),size=2,color="cyan") +
-                ggtitle("Information Criterion") + xlab("# of Modes") + ylab("AIC/BIC") +
-                theme(plot.title = element_text(size=16,face="bold",hjust=0.5))
-        })
         updateNumericInput(session, "numModes", value = y[which.min(y$values),]$modes)
         updateNumericInput(session, "numSteps", value = y[which.min(y$values),]$iters)
+        
+        ggplot(y, aes(x=modes,y=values,group=criteria,color=criteria)) + geom_line() +
+            geom_point(aes(x=minAIC,min(aic)),size=2,color="red") +
+            geom_point(aes(x=minBIC,min(bic)),size=2,color="cyan") +
+            ggtitle("Information Criterion") + xlab("# of Modes") + ylab("AIC/BIC") +
+            theme(plot.title = element_text(size=16,face="bold",hjust=0.5))
     })
     
     output$distPlot <- renderPlot({
+        if(is.null(data())) return(NULL)
         d <- data()[, input$dataColumn]
         nModes <- input$numModes
         nSteps <- input$numSteps
@@ -229,6 +224,7 @@ server <- function(input, output, session) {
     })
     
     output$theta <- renderTable({
+        if(is.null(data())) return(NULL)
         x <- data()[,input$dataColumn]
         
         nModes <- input$numModes
